@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+
+    "incremental": true,
+
+    "target": "es6",
+
+    "module": "es6",
+    "rootDir": "./",
+    "moduleResolution": "node",
+    "lib": ["esnext", "esnext.AsyncIterable"],
+
+    "declaration": true,
+    "outDir": "./dist",
+
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "useUnknownInCatchVariables": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "skipLibCheck": true,
+    
+    "types": ["node"]
+  }
+}
