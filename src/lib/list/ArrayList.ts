@@ -1,6 +1,8 @@
 import { AbstractCollection } from "../collection/AbstractCollection.js";
 import { Collection } from "../collection/Collection.js";
 import { IntRange } from "../iterables/IntRange.js";
+import { Sequence } from "../sequence/Sequence.js";
+import { Stream } from "../sequence/Stream.js";
 import { Comparable } from "../utils/Comparable.js";
 import { Comparator } from "../utils/Comparator.js";
 import { Utils } from "../utils/Utils.js";
@@ -46,9 +48,9 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
     }
 
     public override elementAt(index: number): T | undefined {
-        if (!ensureWithinBounds(this._values, index = index | 0))
-            return undefined;
-        else return this._values[index];
+        Utils.ensurePositiveSize(index = index | 0);
+        Utils.ensureWithinBounds(this._values.length, index);
+        return this._values[index];
     }
 
     public override first(): T | undefined {
@@ -57,6 +59,35 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
 
     public override last(): T | undefined {
         return this._values[this.lastIndex()];
+    }
+
+    // Backwards Iteration optimizations
+
+    public override findLast(predicate: (element: T) => boolean): T | undefined {
+        for (const item of this.backwardsIterator())
+            if (predicate(item))
+                return item;
+        return undefined;
+    }
+
+    public override findLastIndex(predicate: (element: T) => boolean): number {
+        let index = this.lastIndex();
+        for (const item of this.backwardsIterator()) {
+            if (predicate(item))
+                return index;
+            index--;
+        }
+        return -1;
+    }
+
+    public override lastIndexOf(element: T): number {
+        let index = this.lastIndex();
+        for (const item of this.backwardsIterator()) {
+            if (item === element)
+                return index;
+            index--;
+        }
+        return -1;
     }
 
     // Implement AbstractCollection
@@ -140,6 +171,18 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
         return this._values.length;
     }
 
+    public toList(): List<T> {
+        return this;
+    }
+
+    public toMutableList(): MutableList<T> {
+        return this;
+    }
+
+    public toSequence(): Sequence<T> {
+        return Stream.from(this);
+    }
+
     public unzip<R>(this: ArrayList<[T, R]>): [ArrayList<T>, ArrayList<R>] {
         const first = new ArrayList<T>(),
              second = new ArrayList<R>();
@@ -196,10 +239,10 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
     }
 
     public chunked(size: number): ArrayList<List<T>> {
-        ensurePositiveSize(size = size | 0);
+        Utils.ensurePositiveSize(size = size | 0);
         const list = new ArrayList<List<T>>();
         for (let i = 0; i < this.size(); i += size)
-            list.add(ArrayList.from(this._values.slice(i, i + size)) as List<T>);
+            list.add(this.slice(new IntRange(i, i + size - 1)));
         return list;
     }
 
@@ -214,15 +257,28 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
         return list;
     }
 
+    public distinctBy<K>(selector: (element: T) => K): ArrayList<T> {
+        const observed = new Set<K>();
+        const list = new ArrayList<T>();
+        for (const item of this) {
+            const key = selector(item);
+            if (!observed.has(key)) {
+                observed.add(key);
+                list.add(item);
+            }
+        }
+        return list;
+    }
+
     public drop(n: number): ArrayList<T> {
-        ensurePositiveSize(n = n | 0);
+        Utils.ensurePositiveSize(n = n | 0);
         if (n > this.size()) 
             return this.takeLast(0);
         return this.takeLast(this.size() - n);
     }
     
     public dropLast(n: number): ArrayList<T> {
-        ensurePositiveSize(n = n | 0);
+        Utils.ensurePositiveSize(n = n | 0);
         if (n > this.size())
             return this.take(0);
         return this.take(this.size() - n);
@@ -317,8 +373,8 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
         if (this.isEmpty())
             return list;
         for (const index of indices) {
-            ensureWithinBounds(this._values, index | 0);
-            list.add(this.elementAt(index | 0) as T);
+            const element = this.elementAt(index | 0);
+            if (element !== undefined) list.add(element);
         }
         return list;
     }
@@ -360,7 +416,7 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
     }
 
     public take(n: number): ArrayList<T> {
-        ensurePositiveSize(n = n | 0);
+        Utils.ensurePositiveSize(n = n | 0);
         if (n === 0)
             return new ArrayList<T>();
         if (n >= this.size())
@@ -378,7 +434,7 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
     }
 
     public takeLast(n: number): ArrayList<T> {
-        ensurePositiveSize(n = n | 0);
+        Utils.ensurePositiveSize(n = n | 0);
         if (n === 0) 
             return new ArrayList<T>();
         if (n >= this.size())
@@ -414,18 +470,16 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
         return list;
     }
 
-    public toArray(): T[] {
-        return this.fold<T[]>([], ({ acc, element }) => { acc.push(element); return acc; });
-    }
-
     // Implement MutableList
 
     public add(element: T): boolean;
-    public add(element: T, index: number): boolean
+    public add(element: T, index: number): boolean;
     public add(element: T, index?: number): boolean {
         if (typeof index !== "number")
             return this.add(element, this.size());
 
+        Utils.ensurePositiveSize(index = index | 0);
+        Utils.ensureWithinAddingBounds(this._values.length, index);
         this._values.splice(index, 0, element);
         return true;
     }
@@ -436,6 +490,8 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
         if (typeof index !== "number")
             return this.addAll(elements, this.size());
 
+        Utils.ensurePositiveSize(index = index | 0);
+        Utils.ensureWithinAddingBounds(this._values.length, index);
         this._values.splice(index, 0, ...elements);
         return true;
     }
@@ -466,7 +522,8 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
     }
 
     public removeAt(index: number): boolean {
-        ensureWithinBounds(this._values, index);
+        Utils.ensurePositiveSize(index = index | 0);
+        Utils.ensureWithinBounds(this._values.length, index);
         return this._values.splice(index, 1).length > 0;
     }
 
@@ -485,7 +542,8 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
     }
 
     public set(index: number, element: T): T {
-        ensureWithinBounds(this._values, index);
+        Utils.ensurePositiveSize(index = index | 0);
+        Utils.ensureWithinAddingBounds(this._values.length, index);
         return this._values.splice(index, 1, element)[0] as T;
     }
 
@@ -526,13 +584,4 @@ export class ArrayList<T> extends AbstractCollection<T> implements MutableList<T
             }
         }
     }
-}
-
-function ensureWithinBounds(array: any[], index: number): boolean {
-    return index >= 0 && index < array.length && index in array;
-}
-
-function ensurePositiveSize(n: number): void {
-    if (n < 0)
-        throw new TypeError(`n must be positive. received: ${n}`);
 }

@@ -5,11 +5,14 @@
   "description": "lightweight and complete collections library",
   "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "compile": "npx sucrase ./src -d ./dist --transforms typescript",
+    "declaration": "tsc"
   },
   "author": "maruseron",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^16.11.10"
+    "@types/node": "^16.11.10",
+    "sucrase": "^3.20.3"
   }
 }

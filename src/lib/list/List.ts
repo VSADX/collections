@@ -9,6 +9,7 @@ export interface List<T> extends Collection<T> {
     backwardsIterator(): IterableIterator<T>;
     chunked(size: number): List<List<T>>;
     distinct(): List<T>;
+    distinctBy<K>(selector: (item: T) => K): List<T>;
     drop(n: number): List<T>;
     dropLast(n: number): List<T>;
     dropLastWhile(predicate: (element: T) => boolean): List<T>;
@@ -22,8 +23,8 @@ export interface List<T> extends Collection<T> {
     reduceRightIndexed<S extends T>(operation: (each: { element: T, acc: S, index: number }) => S): S | null;
     reversed(): List<T>;
     slice(indices: Iterable<number> | IntRange): List<T>;
-    sorted<T extends Comparable<T>>(this: Iterable<T>): List<T>;
-    sortedDescending<T extends Comparable<T>>(this: Iterable<T>): List<T>;
+    sorted<T extends Comparable<T>>(this: List<T>): List<T>;
+    sortedDescending<T extends Comparable<T>>(this: List<T>): List<T>;
     sortedBy<R extends Comparable<R>>(selector: (element: T) => R): List<T>;
     sortedByDescending<R extends Comparable<R>>(selector: (element: T) => R): List<T>;
     sortedWith(comparator: Comparator<T>): List<T>;
@@ -32,26 +33,18 @@ export interface List<T> extends Collection<T> {
     takeLast(n: number): List<T>;
     takeLastWhile(predicate: (element: T) => boolean): List<T>;
     takeWhile(predicate: (element: T) => boolean): List<T>;
-    toArray(): T[];
-
-    // * change return types of Collection-returning methods for List
 
     filter(predicate: (element: T) => boolean): List<T>;
     filter<S extends T>(predicate: (element: T) => boolean): List<S>;
     filterIndexed(predicate: (each: { element: T, index: number }) => boolean): List<T>;
     filterIndexed<S extends T>(predicate: (each: { element: T, index: number }) => boolean): List<S>;
-    //filterNot(predicate: (element: T) => boolean): List<T>;
-    //filterNotNull(this: List<T | null>, predicate: (element: T) => boolean): List<T>;
-    flatMap<U>(transform: (element: T) => List<U>): List<U>;
-    flatMapIndexed<U>(transform: (each: { element: T, index: number}) => List<U>): List<U>;
-    flatten(this: Collection<Collection<T>>): List<T>;
-    //groupBy<K>(selector: (element: T) => K): Map<K, List<T>>;
-    //groupBy<K, V>(keySelector: (element: T) => K, valueTransform: (element: T) => V): Map<K, List<V>>;
+    flatMap<U>(transform: (element: T) => Iterable<U>): List<U>;
+    flatMapIndexed<U>(transform: (each: { element: T, index: number}) => Iterable<U>): List<U>;
+    flatten(this: List<Collection<T>>): List<T>;
     map<R>(transform: (element: T) => R): List<R>;
     mapIndexed<R>(transform: (each: { element: T, index: number}) => R): List<R>;
     onEach(consumer: (element: T) => void): List<T>;
     onEachIndexed(consumer: (each: { element: T, index: number }) => void): List<T>;
-    // scan and scanindexed
     unzip<R>(this: List<[T, R]>): [List<T>, List<R>];
     zip<R>(other: Iterable<R>): List<[T, R]>
     zip<R, V>(other: Iterable<R>, transform: (each: { a: T, b: R }) => V): List<V>;
@@ -74,4 +67,19 @@ export interface MutableList<T> extends List<T> {
     sortByDescending<R extends Comparable<R>>(selector: (element: T) => R): void;
     sortWith(comparator: Comparator<T>): void;
     sortWithDescending(comparator: Comparator<T>): void;
+
+    filter(predicate: (element: T) => boolean): MutableList<T>;
+    filter<S extends T>(predicate: (element: T) => boolean): MutableList<S>;
+    filterIndexed(predicate: (each: { element: T, index: number }) => boolean): MutableList<T>;
+    filterIndexed<S extends T>(predicate: (each: { element: T, index: number }) => boolean): MutableList<S>;
+    flatMap<U>(transform: (element: T) => Iterable<U>): MutableList<U>;
+    flatMapIndexed<U>(transform: (each: { element: T, index: number}) => Iterable<U>): MutableList<U>;
+    flatten(this: MutableList<Collection<T>>): MutableList<T>;
+    map<R>(transform: (element: T) => R): MutableList<R>;
+    mapIndexed<R>(transform: (each: { element: T, index: number}) => R): MutableList<R>;
+    onEach(consumer: (element: T) => void): MutableList<T>;
+    onEachIndexed(consumer: (each: { element: T, index: number }) => void): MutableList<T>;
+    unzip<R>(this: MutableList<[T, R]>): [MutableList<T>, MutableList<R>];
+    zip<R>(other: Iterable<R>): MutableList<[T, R]>
+    zip<R, V>(other: Iterable<R>, transform: (each: { a: T, b: R }) => V): MutableList<V>;
 }

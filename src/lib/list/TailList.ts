@@ -1,10 +1,13 @@
 import { AbstractCollection } from "../collection/AbstractCollection.js";
 import { Collection } from "../collection/Collection.js";
 import { IntRange } from "../iterables/IntRange.js";
+import { Sequence } from "../sequence/Sequence.js";
+import { Stream } from "../sequence/Stream.js";
 import { Comparable } from "../utils/Comparable.js";
 import { Comparator } from "../utils/Comparator.js";
+import { Utils } from "../utils/Utils.js";
 import { ArrayList } from "./ArrayList.js";
-import { List } from "./List.js";
+import { List, MutableList } from "./List.js";
 
 export class TailList<T> extends AbstractCollection<T> implements List<T> {
     private static readonly EMPTY: TailList<unknown> = 
@@ -71,7 +74,7 @@ export class TailList<T> extends AbstractCollection<T> implements List<T> {
     }
 
     public chunked(size: number): TailList<List<T>> {
-        ensurePositiveSize(size = size | 0);
+        Utils.ensurePositiveSize(size = size | 0);
         let list = TailList.empty<List<T>>();
         for (let i = 0; i < this.size(); i += size)
             list = TailList.appendRawList(list, this.slice(new IntRange(i, i + size)) as List<T>);
@@ -89,22 +92,28 @@ export class TailList<T> extends AbstractCollection<T> implements List<T> {
     }
 
     public distinct(): TailList<T> {
-        return this.distinctHelper(new Set<T>());
+        return this.distinctHelper(new Set<T>(), item => item);
     }
 
-    private distinctHelper(observed: Set<T>): TailList<T> {
+    public distinctBy<K>(selector: (element: T) => K): TailList<T> {
+        return this.distinctHelper(new Set<K>(), selector);
+    }
+
+    private distinctHelper<K>(observed: Set<K>, selector: (element: T) => K): TailList<T> {
         if (this.isEmpty())
             return TailList.empty<T>();
-        else
-            if (!observed.has(this.head)) {
-                observed.add(this.head)
-                return new TailList<T>(this.head, () => this.tail().distinctHelper(observed));
+        else {
+            const key = selector(this.head);
+            if (!observed.has(key)) {
+                observed.add(key);
+                return new TailList<T>(this.head, () => this.tail().distinctHelper(observed, selector));
             } else 
-                return this.tail().distinctHelper(observed);
+                return this.tail().distinctHelper(observed, selector);
+        }
     }
 
     public drop(n: number): TailList<T> {
-        ensurePositiveSize(n = n | 0);
+        Utils.ensurePositiveSize(n = n | 0);
         if (n > 0)
             return this.tail().drop(n - 1);
         else
@@ -112,7 +121,7 @@ export class TailList<T> extends AbstractCollection<T> implements List<T> {
     }
 
     public dropLast(n: number): List<T> {
-        ensurePositiveSize(n = n | 0);
+        Utils.ensurePositiveSize(n = n | 0);
         if (n === 0)
             return this;
         else
@@ -211,7 +220,7 @@ export class TailList<T> extends AbstractCollection<T> implements List<T> {
     }
 
     public take(n: number): TailList<T> {
-        ensurePositiveSize(n = n | 0);
+        Utils.ensurePositiveSize(n = n | 0);
         if (n === 0)
             return TailList.empty<T>();
         else if (n === 1)
@@ -221,14 +230,14 @@ export class TailList<T> extends AbstractCollection<T> implements List<T> {
     }
 
     public takeLast(n: number): TailList<T> {
-        ensurePositiveSize(n = n | 0);
+        Utils.ensurePositiveSize(n = n | 0);
         if (n === 0)
             return this;
         else
             return this.drop(this.size() - n);
     }
 
-    takeLastWhile(predicate: (element: T) => boolean): List<T> {
+    public takeLastWhile(predicate: (element: T) => boolean): List<T> {
         if (this.isEmpty())
             return TailList.empty<T>();
 
@@ -247,10 +256,6 @@ export class TailList<T> extends AbstractCollection<T> implements List<T> {
             return new TailList<T>(this.head, () => this.tail().takeWhile(predicate));
         else
             return TailList.empty<T>();
-    }
-
-    public toArray(): T[] {
-        return this.fold<T[]>([], ({ acc, element }) => { acc.push(element); return acc; });
     }
 
     // Implement AbstractCollection
@@ -440,6 +445,18 @@ export class TailList<T> extends AbstractCollection<T> implements List<T> {
             return 1 + this.tail().size();
     }
 
+    public toList(): List<T> {
+        return this;
+    }
+
+    public toMutableList(): MutableList<T> {
+        return ArrayList.from(this);
+    }
+
+    public toSequence(): Sequence<T> {
+        return Stream.from(this);
+    }
+
     public [Symbol.iterator](): IterableIterator<T> {
         let self: TailList<T> = this;
         return {
@@ -453,9 +470,4 @@ export class TailList<T> extends AbstractCollection<T> implements List<T> {
             }
         }
     }
-}
-
-function ensurePositiveSize(n: number): void {
-    if (n < 0)
-        throw new TypeError(`n must be positive. received: ${n}`);
 }

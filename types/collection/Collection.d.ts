@@ -1,7 +1,9 @@
+import { List, MutableList } from "../list/List.js.";
+import { Sequence } from "../sequence/Sequence.js";
 import { Comparable } from "../utils/Comparable.js";
 import { Comparator } from "../utils/Comparator.js";
 
-export interface Collection<T> extends Iterable<T> {
+export declare interface Collection<T> extends Iterable<T> {
     [Symbol.iterator](): IterableIterator<T>;
     
     allMatch(predicate: (element: T) => boolean): boolean;
@@ -26,8 +28,8 @@ export interface Collection<T> extends Iterable<T> {
     findLast(predicate: (element: T) => boolean): T | undefined;
     findLastIndex(predicate: (element: T) => boolean): number;
     first(): T | undefined;
-    flatMap<U>(transform: (element: T) => Collection<U>): Collection<U>;
-    flatMapIndexed<U>(transform: (each: { element: T, index: number}) => Collection<U>): Collection<U>;
+    flatMap<U>(transform: (element: T) => Iterable<U>): Collection<U>;
+    flatMapIndexed<U>(transform: (each: { element: T, index: number}) => Iterable<U>): Collection<U>;
     flatten(this: Collection<Collection<T>>): Collection<T>;
     fold<R>(initial: R, operation: (each: { acc: R, element: T }) => R): R;
     foldIndexed<R>(initial: R, operation: (each: { acc: R, element: T, index: number }) => R): R;
@@ -63,6 +65,12 @@ export interface Collection<T> extends Iterable<T> {
     // sortedBy, sortedByDescending
     // sortedWith, sortedWithDescending
     size(): number;
+    toArray(): T[];
+    toCollection(): Collection<T>;
+    toIterable(): Iterable<T>;
+    toList(): List<T>;
+    toMutableList(): MutableList<T>;
+    toSequence(): Sequence<T>;
     unzip<R>(this: Collection<[T, R]>): [Collection<T>, Collection<R>];
     zip<R>(other: Iterable<R>): Collection<[T, R]>
     zip<R, V>(other: Iterable<R>, transform: (each: { a: T, b: R }) => V): Collection<V>;

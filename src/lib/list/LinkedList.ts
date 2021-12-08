@@ -1,6 +1,8 @@
 import { AbstractCollection } from "../collection/AbstractCollection.js";
 import { Collection } from "../collection/Collection.js";
 import { IntRange } from "../iterables/IntRange.js";
+import { Sequence } from "../sequence/Sequence.js";
+import { Stream } from "../sequence/Stream.js";
 import { Comparable } from "../utils/Comparable.js";
 import { Comparator } from "../utils/Comparator.js";
 import { Utils } from "../utils/Utils.js";
@@ -40,8 +42,9 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
         return new LinkedList<T>(iterable);
     }
 
-    // private insertion and deletion helpers
+    // private insertion and deletion helpers, some kept in case they're needed in the future
 
+    //@ts-ignore
     private linkFirst(element: T): void {
         const head = this.head;
         const node = new Node(null, element, head);
@@ -75,6 +78,7 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
         this._size++;
     }
 
+    //@ts-ignore
     private unlinkFirst(): T | null {
         if (this.head?.next == null) {
             this.clear();
@@ -87,6 +91,7 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
         return head.item;
     }
 
+    //@ts-ignore
     private unlinkLast(): T | null {
         if (this.tail?.prev == null) {
             this.clear();
@@ -143,8 +148,8 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
     }
 
     public node(index: number): Node<T> {
-        ensurePositiveSize(index = index | 0);
-        ensureWithinBounds(this.size(), index);
+        Utils.ensurePositiveSize(index = index | 0);
+        Utils.ensureWithinBounds(this.size(), index);
 
         if (index < this._size / 2) {
             const found = this.traverse(index);
@@ -157,6 +162,40 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
                 throw new Utils.NoSuchElementError();
             return found;
         }
+    }
+
+    // Optimized traversal optimization
+
+    public override elementAt(index: number): T | undefined {
+        try { return this.node(index).item; } 
+        catch (err) { return undefined; }
+    }
+
+    public override findLast(predicate: (element: T) => boolean): T | undefined {
+        for (const item of this.backwardsIterator())
+            if (predicate(item))
+                return item;
+        return undefined;
+    }
+
+    public override findLastIndex(predicate: (element: T) => boolean): number {
+        let index = this.lastIndex();
+        for (const item of this.backwardsIterator()) {
+            if (predicate(item))
+                return index;
+            index--;
+        }
+        return -1;
+    }
+
+    public override lastIndexOf(element: T): number {
+        let index = this.lastIndex();
+        for (const item of this.backwardsIterator()) {
+            if (item === element)
+                return index;
+            index--;
+        }
+        return -1;
     }
 
     // Implement AbstractCollection
@@ -182,14 +221,14 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
         return list;
     }
 
-    public flatMap<U>(transform: (element: T) => LinkedList<U>): LinkedList<U> {
+    public flatMap<U>(transform: (element: T) => Iterable<U>): LinkedList<U> {
         const list = new LinkedList<U>();
         for (const item of this)
             list.addAll(transform(item));
         return list;
     }
 
-    public flatMapIndexed<U>(transform: (each: { element: T; index: number; }) => LinkedList<U>): LinkedList<U> {
+    public flatMapIndexed<U>(transform: (each: { element: T; index: number; }) => Iterable<U>): LinkedList<U> {
         let index = 0;
         const list = new LinkedList<U>();
         for (const item of this)
@@ -197,7 +236,7 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
         return list;
     }
 
-    public flatten(this: Collection<Collection<T>>): LinkedList<T> {
+    public flatten(this: LinkedList<Collection<T>>): LinkedList<T> {
         const list = new LinkedList<T>();
         for (const item of this)
             list.addAll(item);
@@ -223,13 +262,13 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
         return list;
     }
 
-    public onEach(consumer: (element: T) => void): Collection<T> {
+    public onEach(consumer: (element: T) => void): LinkedList<T> {
         for (const item of this)
             consumer(item);
         return this;
     }
 
-    public onEachIndexed(consumer: (each: { element: T; index: number; }) => void): Collection<T> {
+    public onEachIndexed(consumer: (each: { element: T; index: number; }) => void): LinkedList<T> {
         let index = 0;
         for (const item of this)
             consumer({ element: item, index: index++ });
@@ -238,6 +277,18 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
 
     public size(): number {
         return this._size;
+    }
+
+    public toList(): List<T> {
+        return this;
+    }
+
+    public toMutableList(): MutableList<T> {
+        return this;
+    }
+
+    public toSequence(): Sequence<T> {
+        return Stream.from(this);
     }
 
     public unzip<R>(this: LinkedList<[T, R]>): [LinkedList<T>, LinkedList<R>] {
@@ -296,10 +347,10 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
     }
 
     public chunked(size: number): LinkedList<List<T>> {
-        ensurePositiveSize(size = size | 0);
+        Utils.ensurePositiveSize(size = size | 0);
         const list = new LinkedList<List<T>>();
         for (let i = 0; i < this.size(); i += size)
-            list.add(this.slice(new IntRange(i, i + size - 1)) as any);
+            list.add(this.slice(new IntRange(i, i + size - 1)));
         return list;
     }
 
@@ -314,15 +365,28 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
         return list;
     }
 
+    public distinctBy<K>(selector: (element: T) => K): LinkedList<T> {
+        const observed = new Set<K>();
+        const list = new LinkedList<T>();
+        for (const item of this) {
+            const key = selector(item);
+            if (!observed.has(key)) {
+                observed.add(key);
+                list.add(item);
+            }
+        }
+        return list;
+    }
+
     public drop(n: number): LinkedList<T> {
-        ensurePositiveSize(n = n | 0);
+        Utils.ensurePositiveSize(n = n | 0);
         if (n > this.size())
             return this.takeLast(0);
         return this.takeLast(this.size() - n);
     }
 
     public dropLast(n: number): LinkedList<T> {
-        ensurePositiveSize(n = n | 0);
+        Utils.ensurePositiveSize(n = n | 0);
         if (n > this.size())
             return this.take(0);
         return this.take(this.size() - n);
@@ -378,7 +442,7 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
 
     public minusAll(elements: Iterable<T>): LinkedList<T> {
         const list = LinkedList.from(this);
-        list.removeAll(element);
+        list.removeAll(elements);
         return list;
     }
 
@@ -417,8 +481,8 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
         if (this.isEmpty())
             return list;
         for (const index of indices) {
-            ensureWithinBounds(this.size(), index | 0);
-            list.add(this.elementAt(index | 0) as T);
+            const element = this.elementAt(index | 0);
+            if (element !== undefined) list.add(element);
         }
         return list;
     }
@@ -460,7 +524,7 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
     }
 
     public take(n: number): LinkedList<T> {
-        ensurePositiveSize(n = n | 0);
+        Utils.ensurePositiveSize(n = n | 0);
         if (n === 0)
             return new LinkedList<T>();
         if (n >= this.size())
@@ -478,7 +542,7 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
     }
 
     public takeLast(n: number): LinkedList<T> {
-        ensurePositiveSize(n = n | 0);
+        Utils.ensurePositiveSize(n = n | 0);
         if (n === 0)
             return new LinkedList<T>();
         if (n >= this.size())
@@ -516,10 +580,6 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
         }
         return list;
     }
-
-    public toArray(): T[] {
-        return this.fold<T[]>([], ({ acc, element }) => { acc.push(element); return acc });
-    }
     
     // Implement MutableList
 
@@ -529,8 +589,8 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
         if (typeof index !== "number") {
             this.linkLast(element);
         } else {
-            ensurePositiveSize(index = index | 0);
-            ensureWithinAddingBounds(this.size(), index);
+            Utils.ensurePositiveSize(index = index | 0);
+            Utils.ensureWithinAddingBounds(this.size(), index);
             this.linkBefore(index, element);
         }
         return true;
@@ -545,8 +605,8 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
         if (typeof index !== "number")
             index = this._size;
 
-        ensurePositiveSize(index = index | 0);
-        ensureWithinAddingBounds(this.size(), index);
+        Utils.ensurePositiveSize(index = index | 0);
+        Utils.ensureWithinAddingBounds(this.size(), index);
 
         let predecessor: Node<T> | null,
             successor:   Node<T> | null;
@@ -579,10 +639,11 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
     }
 
     public clear(): void {
-        for (let x = this.head; x !== null; x = x.next) {
+        for (let x = this.head; x !== null; ) {
             const next = x.next;
             x.next = null;
             x.prev = null;
+            x = next;
         }
         this.head = this.tail = null;
         this._size = 0;
@@ -633,8 +694,8 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
     }
 
     public set(index: number, element: T): T {
-        ensurePositiveSize(index = index | 0);
-        ensureWithinBounds(this._size, index);
+        Utils.ensurePositiveSize(index = index | 0);
+        Utils.ensureWithinAddingBounds(this._size, index);
         const node = this.node(index);
         const old  = node.item;
         node.item  = element;
@@ -684,18 +745,4 @@ export class LinkedList<T> extends AbstractCollection<T> implements MutableList<
             }
         }
     }
-}
-
-function ensureWithinBounds(size: number, index: number): void {
-    if (index < 0 && index >= size)
-        throw new Utils.IndexOutOfBoundsError();
-}
-
-function ensureWithinAddingBounds(size: number, index: number): void {
-    ensureWithinBounds(size + 1, index);
-}
-
-function ensurePositiveSize(n: number): void {
-    if (n < 0)
-        throw new TypeError(`n must be positive. received: ${n}`);
 }

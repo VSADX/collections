@@ -1,3 +1,5 @@
+import { List, MutableList } from "../list/List.js";
+import { Sequence } from "../sequence/Sequence.js";
 import { Comparable } from "../utils/Comparable.js";
 import { Comparator } from "../utils/Comparator.js";
 import { Collection } from "./Collection.js";
@@ -163,7 +165,7 @@ export abstract class AbstractCollection<T> implements Collection<T> {
     public forEachIndexed(consumer: (each: { element: T; index: number; }) => void): void {
         let index = 0;
         for (const item of this)
-            consumer({ element: item, index });
+            consumer({ element: item, index: index++ });
     }
 
     //abstract groupBy<K>(selector: (element: T) => K): Map<K, Collection<T>>;
@@ -380,6 +382,24 @@ export abstract class AbstractCollection<T> implements Collection<T> {
     }
 
     abstract size(): number;
+
+    public toArray(): T[] {
+        return this.fold<T[]>([], ({ acc, element }) => { acc.push(element); return acc; });
+    }
+
+    public toCollection(): Collection<T> {
+        return this;
+    }
+
+    public toIterable(): Iterable<T> {
+        return this;
+    }
+
+    abstract toList(): List<T>;
+    
+    abstract toMutableList(): MutableList<T>;
+
+    abstract toSequence(): Sequence<T>;
 
     abstract unzip<R>(this: Collection<[T, R]>): [Collection<T>, Collection<R>];
 

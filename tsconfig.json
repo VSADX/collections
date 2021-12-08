@@ -8,9 +8,10 @@
     "module": "es6",
     "rootDir": "./",
     "moduleResolution": "node",
-    "lib": ["esnext", "esnext.AsyncIterable"],
+    "lib": [],
 
     "declaration": true,
+    "noEmit": true,
     "outDir": "./dist",
 
     "esModuleInterop": true,
